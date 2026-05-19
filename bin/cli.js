@@ -101,11 +101,13 @@ function validatePort(value) {
 }
 
 function validateFields(value) {
-    if (typeof value !== "string" || value.trim() === "") {
+    const raw = Array.isArray(value) ? value.join(",") : String(value ?? "");
+
+    if (raw.trim() === "") {
         return "At least one field is required.";
     }
 
-    const parsed = value
+    const parsed = raw
         .split(",")
         .map((f) => f.trim())
         .filter(Boolean);
