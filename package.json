@@ -1,6 +1,6 @@
 {
   "name": "tss-stack",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Interactive full-stack Node.js + React + MySQL project generator",
   "bin": {
     "tss-stack": "bin/cli.js"
@@ -30,6 +30,7 @@
     "type": "git",
     "url": "https://github.com/mugishabrian202-rgb/tss-stack.git"
   },
-  "homepage": "https://github.com/mugishabrian202-rgb/tss-stack#readme","license": "ISC",
+  "homepage": "https://github.com/mugishabrian202-rgb/tss-stack#readme",
+  "license": "ISC",
   "type": "commonjs"
 }
