@@ -53,9 +53,22 @@ DB_USER=root
 DB_PASSWORD=your_password_here
 DB_NAME=${dbName}
 PORT=${port}
-SESSION_SECRET=change_me
+SESSION_SECRET=change_me_to_random_string
 CLIENT_URL=http://localhost:5173
 NODE_ENV=development
+`
+    );
+
+    await fs.outputFile(
+        path.join(root, ".gitignore"),
+        `node_modules/
+.env
+.env.local
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
 `
     );
 
@@ -104,15 +117,14 @@ const bcrypt = require("bcryptjs");
 const rateLimit = require("express-rate-limit");
 const router = express.Router();
 const db = require("../config/db");
+const isAuthenticated = require("../middleware/auth");
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
 });
 
-router.use(authLimiter);
-
-router.post("/register", async (req, res) => {
+router.post("/register", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
@@ -126,29 +138,40 @@ router.post("/register", async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
-    await db.query("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash]);
-
-    res.json({ message: "User registered successfully" });
+    try {
+      await db.query("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash]);
+      res.json({ message: "User registered successfully" });
+    } catch (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      throw err;
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const [results] = await db.query("SELECT * FROM users WHERE username = ?", [username]);
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password required" });
+    }
+
+    const [results] = await db.query("SELECT id, username FROM users WHERE username = ? LIMIT 1", [username]);
 
     if (results.length === 0) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const user = results[0];
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    const [userWithPassword] = await db.query("SELECT password FROM users WHERE id = ?", [user.id]);
+    const passwordMatch = await bcrypt.compare(password, userWithPassword[0].password);
 
     if (!passwordMatch) {
-      return res.status(401).json({ message: "Wrong password" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     req.session.user = {
@@ -165,8 +188,13 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.get("/me", isAuthenticated, (req, res) => {
+  res.json(req.session.user);
+});
+
 router.post("/logout", (req, res) => {
-  req.session.destroy(() => {
+  req.session.destroy((err) => {
+    if (err) return res.status(500).json({ error: "Logout failed" });
     res.json({ message: "Logged out" });
   });
 });

@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS ${escapeSqlIdentifier(table.name)} (
 `;
         }
 
-        sql += `  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        sql += `  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 `;
