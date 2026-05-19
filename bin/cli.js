@@ -178,7 +178,11 @@ function checkNodeVersion() {
 
 function runCommand(command, args, cwd, spinner, failMessage) {
     return new Promise((resolve, reject) => {
-        const child = spawn(command, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+        const child = spawn(command, args.filter(Boolean), {
+            cwd,
+            shell: process.platform === "win32",
+            stdio: ["ignore", "pipe", "pipe"],
+        });
 
         child.stdout.on("data", (data) => process.stdout.write(data));
         child.stderr.on("data", (data) => process.stderr.write(data));
@@ -199,7 +203,6 @@ function runCommand(command, args, cwd, spinner, failMessage) {
         });
     });
 }
-
 async function cleanupProject(targetDir) {
     try {
         if (await fs.pathExists(targetDir)) {
