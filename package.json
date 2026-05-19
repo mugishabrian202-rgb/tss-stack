@@ -25,7 +25,11 @@
     "mysql",
     "scaffold"
   ],
-  "author": "Mugisha Brian",
-  "license": "ISC",
+  "author": "mugishabrian202-rgb",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mugishabrian202-rgb/tss-stack.git"
+  },
+  "homepage": "https://github.com/mugishabrian202-rgb/tss-stack#readme","license": "ISC",
   "type": "commonjs"
 }

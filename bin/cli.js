@@ -100,19 +100,34 @@ function validatePort(value) {
     return true;
 }
 
-function validateFields(fields) {
-    if (!fields || fields.trim() === "") return "At least one field is required.";
-    const parsed = fields.split(",").map((f) => f.trim()).filter(Boolean);
-    if (parsed.length === 0) return "At least one field is required.";
-    if (parsed.length > 50) return "Maximum 50 fields per table allowed.";
+function validateFields(value) {
+    if (typeof value !== "string" || value.trim() === "") {
+        return "At least one field is required.";
+    }
+
+    const parsed = value
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+
+    if (parsed.length === 0) {
+        return "At least one field is required.";
+    }
+
+    if (parsed.length > 50) {
+        return "Maximum 50 fields per table allowed.";
+    }
+
     const invalid = parsed.find((field) => {
         if (!/^[a-z][a-z0-9_]*$/.test(field)) return true;
         const reserved = ["id", "created_at", "updated_at"];
         return reserved.includes(field.toLowerCase());
     });
+
     if (invalid) {
         return `Invalid field name "${invalid}". Use lowercase snake_case starting with a letter.`;
     }
+
     return true;
 }
 
