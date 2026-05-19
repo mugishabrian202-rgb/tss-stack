@@ -115,13 +115,32 @@ SmartPark/
 - **`routes/auth.js`** — Register, login, logout endpoints (if auth selected)
 - **`.env.example`** — Template for your database credentials
 
-### Frontend (`frontend-project/`)
+## Frontend (`frontend-project/`)
 
-- **`src/api/axios.js`** — Pre-configured Axios instance pointed at your backend, `withCredentials` enabled
-- **`src/pages/*.jsx`** — One page per table with form, table display, and only the action buttons matching your selected operations
-- **`src/pages/Login.jsx`** — Login form wired to `/auth/login` (if auth selected)
+- **`vite.config.js`** — Vite configuration with React plugin
+- **`tailwind.config.js`** — Tailwind CSS configuration
+- **`postcss.config.js`** — PostCSS plugins (Tailwind + Autoprefixer)
+- **`index.html`** — Entry HTML file (required by Vite)
+- **`.env.local.example`** — Environment template for API URL
+- **`.gitignore`** — Git ignore rules for frontend
+- **`src/api/axios.js`** — Pre-configured Axios instance with environment-based URL
+- **`src/pages/*.jsx`** — One page per table with:
+  - Error handling and error messages
+  - Loading states on form submission
+  - Success notifications
+  - Automatic data fetching on page load
+  - Complete CRUD operations (only those selected)
+- **`src/pages/Home.jsx`** — Landing page
+- **`src/pages/Login.jsx`** — Login/Register page with toggle (if auth selected)
 - **`src/pages/Reports.jsx`** — Reports page scaffold (if selected)
-- **`src/App.jsx`** — React Router setup with Navbar and all routes configured
+- **`src/components/PrivateRoute.jsx`** — Route protection component (if auth selected)
+- **`src/context/AuthContext.jsx`** — Auth provider with session checking (if auth selected)
+- **`src/App.jsx`** — React Router setup with:
+  - Protected routes (if auth selected)
+  - Navbar with conditional logout button
+  - Auth context provider wrapping app
+- **`src/main.jsx`** — React entry point
+- **`src/index.css`** — Tailwind CSS imports
 
 ---
 
@@ -133,7 +152,7 @@ SmartPark/
 mysql -u root -p < my-app/backend-project/config/database.sql
 ```
 
-### 2. Configure environment
+### 2. Configure backend environment
 
 ```bash
 cd my-app/backend-project
@@ -148,31 +167,101 @@ DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=smartpark_db
 PORT=5000
-SESSION_SECRET=any_random_string_here
+SESSION_SECRET=your_random_secret_string_here
+CLIENT_URL=http://localhost:5173
+NODE_ENV=development
 ```
 
-### 3. Start the backend
-
-```bash
-npm run dev
-```
-
-### 4. Start the frontend
+### 3. Configure frontend environment (optional)
 
 ```bash
 cd ../frontend-project
+cp .env.local.example .env.local
+```
+
+By default, the frontend connects to `http://localhost:5000`. Override in `.env.local` if needed:
+
+```env
+VITE_API_URL=http://your-api-url:5000
+```
+
+### 4. Start the backend
+
+```bash
+cd my-app/backend-project
+npm install
 npm run dev
 ```
 
-### 5. Open the app
+Server runs on `http://localhost:5000`
 
+### 5. Start the frontend
+
+```bash
+cd ../frontend-project
+npm install
+npm run dev
 ```
-http://localhost:5173
-```
+
+Frontend runs on `http://localhost:5173`
+
+### 6. Open in browser
+
+Visit `http://localhost:5173`
+
+If auth is enabled, register or login first. Then access your data tables.
 
 ---
 
-## Requirements
+## Features
+
+✅ **Authentication** (optional)
+- Login/Register with bcrypt hashing
+- Session management
+- Route protection
+- Auto session check on load
+- Logout functionality
+
+✅ **Full CRUD Interface**
+- Form validation
+- Error handling with messages
+- Success notifications
+- Loading states
+- Auto data refresh
+
+✅ **Frontend Stack**
+- React 18 + Vite
+- React Router v6
+- Tailwind CSS
+- Axios with credentials
+
+✅ **Backend Stack**
+- Express.js
+- MySQL connection pooling
+- CORS & security headers
+- Rate limiting
+- Session management
+
+✅ **Database**
+- Auto table creation
+- Timestamps (created_at, updated_at)
+- Proper SQL types
+- Auto-increment IDs
+
+---
+
+## Stack Summary
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Backend | Express.js |
+| Database | MySQL (mysql2) |
+| Auth | express-session + bcryptjs |
+| Frontend | React 18 + Vite |
+| CSS | Tailwind CSS |
+| HTTP | Axios |
+| Routing | React Router v6 |
 
 - Node.js 16 or higher
 - npm 7 or higher
