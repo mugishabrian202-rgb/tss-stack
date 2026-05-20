@@ -310,14 +310,26 @@ process.stdout.write("\x1Bc");
 
 async function showProjectTree(config) {
     const backendRouteFiles = [
-        config.needsAuth ? "│   ├── auth.js" : null,
-        ...config.tables.map((t) => `│   ├── ${t.name}.js`),
+        config.needsAuth ? "│   │   ├── auth.js" : null,
+        ...config.tables.map((t, i) => {
+            const isLast = i === config.tables.length - 1;
+            return `│   │   ${isLast && !config.tables.slice(i + 1).length ? "└──" : "├──"} ${t.name}.js`;
+        }),
     ].filter(Boolean);
 
+    const frontendContextFiles = config.needsAuth ? [
+        "│   │   ├── AuthContext.jsx",
+    ] : [];
+
+    const frontendComponentFiles = config.needsAuth ? [
+        "│   │   └── PrivateRoute.jsx",
+    ] : [];
+
     const frontendPageFiles = [
-        config.needsAuth ? "│   ├── Login.jsx" : null,
-        ...config.tables.map((t) => `│   ├── ${toPascal(t.name)}.jsx`),
-        config.needsReports ? "│   └── Reports.jsx" : null,
+        "│   │   ├── Home.jsx",
+        config.needsAuth ? "│   │   ├── Login.jsx" : null,
+        ...config.tables.map((t) => `│   │   ├── ${toPascal(t.name)}.jsx`),
+        config.needsReports ? "│   │   └── Reports.jsx" : null,
     ].filter(Boolean);
 
     const tree = [
@@ -328,9 +340,9 @@ async function showProjectTree(config) {
         "│   │   ├── db.js",
         "│   │   └── database.sql",
         "│   ├── middleware/",
-        config.needsAuth ? "│   │   └── auth.js" : null,
+        config.needsAuth ? "│   │   └── auth.js" : "│   │   (none)",
         "│   ├── routes/",
-        ...formatTree(backendRouteFiles).map((line) => `│   ${line}`),
+        ...backendRouteFiles,
         "│   ├── server.js",
         "│   ├── .env.example",
         "│   └── package.json",
@@ -339,10 +351,21 @@ async function showProjectTree(config) {
         "    ├── src/",
         "    │   ├── api/",
         "    │   │   └── axios.js",
+        config.needsAuth ? "    │   ├── context/" : null,
+        ...frontendContextFiles,
+        config.needsAuth ? "    │   ├── components/" : null,
+        ...frontendComponentFiles,
         "    │   ├── pages/",
-        ...formatTree(frontendPageFiles).map((line) => `    │   ${line}`),
+        ...frontendPageFiles,
         "    │   ├── App.jsx",
-        "    │   └── main.jsx",
+        "    │   ├── main.jsx",
+        "    │   └── index.css",
+        "    ├── vite.config.js",
+        "    ├── tailwind.config.js",
+        "    ├── postcss.config.js",
+        "    ├── index.html",
+        "    ├── .env.local.example",
+        "    ├── .gitignore",
         "    └── package.json",
     ].filter(Boolean);
 
