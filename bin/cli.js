@@ -376,7 +376,7 @@ async function run() {
     checkNodeVersion();
 
     const targetDir = process.argv[2];
-    if (!targetDir) logger.fatal("Usage: npx project-folder <folder-name>");
+    if (!targetDir) logger.fatal("Usage: npx tss-stack <folder-name>");
 
     const folderValidation = validateFolderName(targetDir);
     if (folderValidation !== true) logger.fatal(folderValidation);
