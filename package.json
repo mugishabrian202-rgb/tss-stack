@@ -1,6 +1,6 @@
 {
   "name": "tss-stack",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Interactive full-stack Node.js + React + MySQL project generator",
   "bin": {
     "tss-stack": "bin/cli.js"
