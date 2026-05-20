@@ -283,44 +283,6 @@ tss-stack/
 │       └── utils.js        ← shared helpers (toPascal, toRoute, toCamel)
 └── package.json
 ```
-
----
-
-## Local Development
-
-Clone the repo and link it globally to test before publishing:
-
-```bash
-git clone https://github.com/your-username/tss-stack.git
-cd tss-stack
-npm install
-npm link
-```
-
-Now test it like a real user:
-
-```bash
-tss-stack test-project
-```
-
-When done testing:
-
-```bash
-npm unlink -g tss-stack
-```
-
----
-
-## Publishing a New Version
-
-```bash
-npm version patch   # bug fix:    1.0.0 → 1.0.1
-npm version minor   # new feature: 1.0.0 → 1.1.0
-npm version major   # breaking:   1.0.0 → 2.0.0
-
-npm publish
-```
-
 ---
 
 ## Roadmap

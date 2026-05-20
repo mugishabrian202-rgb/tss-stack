@@ -3,38 +3,38 @@ const path = require("path");
 const { toPascal, toRoute } = require("./utils");
 
 function generateFrontend(config) {
-    const { projectName, tables, needsAuth, needsReports, targetDir } = config;
-    const root = path.join(targetDir, "frontend-project");
+  const { projectName, tables, needsAuth, needsReports, targetDir } = config;
+  const root = path.join(targetDir, "frontend-project");
 
-    fs.outputFileSync(
-        path.join(root, "package.json"),
-        JSON.stringify(
-            {
-                name: "frontend-project",
-                version: "1.0.0",
-                scripts: { dev: "vite", build: "vite build" },
-                dependencies: {
-                    react: "^18.2.0",
-                    "react-dom": "^18.2.0",
-                    "react-router-dom": "^6.18.0",
-                    axios: "^1.6.0",
-                },
-                devDependencies: {
-                    vite: "^5.0.0",
-                    "@vitejs/plugin-react": "^4.2.0",
-                    tailwindcss: "^3.3.0",
-                    autoprefixer: "^10.4.16",
-                    postcss: "^8.4.31",
-                },
-            },
-            null,
-            2
-        )
-    );
+  fs.outputFileSync(
+    path.join(root, "package.json"),
+    JSON.stringify(
+      {
+        name: "frontend-project",
+        version: "1.0.0",
+        scripts: { dev: "vite", build: "vite build" },
+        dependencies: {
+          react: "^18.2.0",
+          "react-dom": "^18.2.0",
+          "react-router-dom": "^6.18.0",
+          axios: "^1.6.0",
+        },
+        devDependencies: {
+          vite: "^5.0.0",
+          "@vitejs/plugin-react": "^4.2.0",
+          tailwindcss: "^3.3.0",
+          autoprefixer: "^10.4.16",
+          postcss: "^8.4.31",
+        },
+      },
+      null,
+      2
+    )
+  );
 
-    fs.outputFileSync(
-        path.join(root, "vite.config.js"),
-        `import { defineConfig } from 'vite';
+  fs.outputFileSync(
+    path.join(root, "vite.config.js"),
+    `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -45,11 +45,11 @@ export default defineConfig({
   },
 });
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, "tailwind.config.js"),
-        `export default {
+  fs.outputFileSync(
+    path.join(root, "tailwind.config.js"),
+    `export default {
   content: [
     "./index.html",
     "./src/**/*.{js,jsx}",
@@ -60,22 +60,22 @@ export default defineConfig({
   plugins: [],
 };
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, "postcss.config.js"),
-        `export default {
+  fs.outputFileSync(
+    path.join(root, "postcss.config.js"),
+    `export default {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
   },
 };
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, "index.html"),
-        `<!DOCTYPE html>
+  fs.outputFileSync(
+    path.join(root, "index.html"),
+    `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -88,17 +88,17 @@ export default defineConfig({
   </body>
 </html>
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, ".env.local.example"),
-        `VITE_API_URL=http://localhost:5000
+  fs.outputFileSync(
+    path.join(root, ".env.local.example"),
+    `VITE_API_URL=http://localhost:5000
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, ".gitignore"),
-        `node_modules/
+  fs.outputFileSync(
+    path.join(root, ".gitignore"),
+    `node_modules/
 dist/
 .env
 .env.local
@@ -107,11 +107,11 @@ dist/
 .idea/
 .vscode/
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, "src", "api", "axios.js"),
-        `import axios from "axios";
+  fs.outputFileSync(
+    path.join(root, "src", "api", "axios.js"),
+    `import axios from "axios";
 
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
@@ -120,11 +120,11 @@ const API = axios.create({
 
 export default API;
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, "src", "main.jsx"),
-        `import React from "react";
+  fs.outputFileSync(
+    path.join(root, "src", "main.jsx"),
+    `import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -135,11 +135,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 `
-    );
+  );
 
-    fs.outputFileSync(
-        path.join(root, "src", "index.css"),
-        `@tailwind base;
+  fs.outputFileSync(
+    path.join(root, "src", "index.css"),
+    `@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -147,12 +147,12 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
 }
 `
-    );
+  );
 
-    if (needsAuth) {
-        fs.outputFileSync(
-            path.join(root, "src", "context", "AuthContext.jsx"),
-            `import React, { createContext, useState, useEffect } from "react";
+  if (needsAuth) {
+    fs.outputFileSync(
+      path.join(root, "src", "context", "AuthContext.jsx"),
+      `import React, { createContext, useState, useEffect } from "react";
 import API from "../api/axios";
 
 export const AuthContext = createContext();
@@ -182,11 +182,11 @@ export function AuthProvider({ children }) {
   );
 }
 `
-        );
+    );
 
-        fs.outputFileSync(
-            path.join(root, "src", "components", "PrivateRoute.jsx"),
-            `import { Navigate } from "react-router-dom";
+    fs.outputFileSync(
+      path.join(root, "src", "components", "PrivateRoute.jsx"),
+      `import { Navigate } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
@@ -197,12 +197,12 @@ export default function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 `
-        );
-    }
+    );
+  }
 
-    fs.outputFileSync(
-        path.join(root, "src", "pages", "Home.jsx"),
-        `export default function Home() {
+  fs.outputFileSync(
+    path.join(root, "src", "pages", "Home.jsx"),
+    `export default function Home() {
   return (
     <div className="p-6 max-w-2xl">
       <h1 className="text-3xl font-bold mb-4">Welcome</h1>
@@ -211,20 +211,20 @@ export default function PrivateRoute({ children }) {
   );
 }
 `
-    );
+  );
 
-    for (const table of tables) {
-        const name = toPascal(table.name);
-        const route = toRoute(table.name);
-        const fields = table.fields;
-        const ops = table.operations;
+  for (const table of tables) {
+    const name = toPascal(table.name);
+    const route = toRoute(table.name);
+    const fields = table.fields;
+    const ops = table.operations;
 
-        const stateFields = fields.map((f) => `    ${f}: ""`).join(",\n");
-        const formReset = fields.map((f) => `${f}: ""`).join(", ");
-        const editSet = fields.map((f) => `${f}: item.${f}`).join(", ");
-        const inputs = fields
-            .map(
-                (f) => `        <input
+    const stateFields = fields.map((f) => `    ${f}: ""`).join(",\n");
+    const formReset = fields.map((f) => `${f}: ""`).join(", ");
+    const editSet = fields.map((f) => `${f}: item.${f}`).join(", ");
+    const inputs = fields
+      .map(
+        (f) => `        <input
           type="text"
           placeholder="${f}"
           value={form.${f}}
@@ -232,18 +232,18 @@ export default function PrivateRoute({ children }) {
           className="border p-2 rounded w-full"
           required
         />`
-            )
-            .join("\n");
+      )
+      .join("\n");
 
-        const tableHeaders = ["id", ...fields, "created_at"]
-            .map((f) => `          <th className="border px-4 py-2">${f}</th>`)
-            .join("\n");
+    const tableHeaders = ["id", ...fields, "created_at"]
+      .map((f) => `          <th className="border px-4 py-2">${f}</th>`)
+      .join("\n");
 
-        const tableRow = ["id", ...fields, "created_at"]
-            .map((f) => `          <td className="border px-4 py-2">{item.${f}}</td>`)
-            .join("\n");
+    const tableRow = ["id", ...fields, "created_at"]
+      .map((f) => `          <td className="border px-4 py-2">{item.${f}}</td>`)
+      .join("\n");
 
-        let page = `import { useState, useEffect } from "react";
+    let page = `import { useState, useEffect } from "react";
 import API from "../api/axios";
 
 export default function ${name}() {
@@ -272,8 +272,8 @@ ${ops.includes("update") ? "  const [editId, setEditId] = useState(null);" : ""}
 
 `;
 
-        if (ops.includes("insert")) {
-            page += `  const handleSubmit = async (e) => {
+    if (ops.includes("insert")) {
+      page += `  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -298,10 +298,10 @@ ${ops.includes("update") ? `      if (editId) {
   };
 
 `;
-        }
+    }
 
-        if (ops.includes("delete")) {
-            page += `  const handleDelete = async (id) => {
+    if (ops.includes("delete")) {
+      page += `  const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     setLoading(true);
     setError("");
@@ -317,10 +317,10 @@ ${ops.includes("update") ? `      if (editId) {
   };
 
 `;
-        }
+    }
 
-        if (ops.includes("update")) {
-            page += `  const handleEdit = (item) => {
+    if (ops.includes("update")) {
+      page += `  const handleEdit = (item) => {
     setEditId(item.id);
     setForm({ ${editSet} });
   };
@@ -331,9 +331,9 @@ ${ops.includes("update") ? `      if (editId) {
   };
 
 `;
-        }
+    }
 
-        page += `  return (
+    page += `  return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">${name}</h1>
 
@@ -374,14 +374,14 @@ ${ops.includes("delete") ? '            <button onClick={() => handleDelete(item
 }
 `;
 
-        fs.outputFileSync(path.join(root, "src", "pages", `${name}.jsx`), page);
-        console.log(`  [✓] pages/${name}.jsx`);
-    }
+    fs.outputFileSync(path.join(root, "src", "pages", `${name}.jsx`), page);
+    console.log(`  [✓] pages/${name}.jsx`);
+  }
 
-    if (needsAuth) {
-        fs.outputFileSync(
-            path.join(root, "src", "pages", "Login.jsx"),
-            `import { useState, useContext } from "react";
+  if (needsAuth) {
+    fs.outputFileSync(
+      path.join(root, "src", "pages", "Login.jsx"),
+      `import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import API from "../api/axios";
@@ -447,13 +447,13 @@ export default function Login() {
   );
 }
 `
-        );
-    }
+    );
+  }
 
-    if (needsReports) {
-        fs.outputFileSync(
-            path.join(root, "src", "pages", "Reports.jsx"),
-            `export default function Reports() {
+  if (needsReports) {
+    fs.outputFileSync(
+      path.join(root, "src", "pages", "Reports.jsx"),
+      `export default function Reports() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Reports</h1>
@@ -462,27 +462,27 @@ export default function Login() {
   );
 }
 `
-        );
-    }
+    );
+  }
 
-    const imports = tables
-        .map((t) => `import ${toPascal(t.name)} from "./pages/${toPascal(t.name)}";`)
-        .join("\n");
+  const imports = tables
+    .map((t) => `import ${toPascal(t.name)} from "./pages/${toPascal(t.name)}";`)
+    .join("\n");
 
-    const routes = tables
-        .map((t) => {
-            const route = `<Route path="/${toRoute(t.name)}" element={<${toPascal(t.name)} />} />`;
-            return needsAuth
-                ? `          <Route path="/${toRoute(t.name)}" element={<PrivateRoute><${toPascal(t.name)} /></PrivateRoute>} />`
-                : `          ${route}`;
-        })
-        .join("\n");
+  const routes = tables
+    .map((t) => {
+      const route = `<Route path="/${toRoute(t.name)}" element={<${toPascal(t.name)} />} />`;
+      return needsAuth
+        ? `          <Route path="/${toRoute(t.name)}" element={<PrivateRoute><${toPascal(t.name)} /></PrivateRoute>} />`
+        : `          ${route}`;
+    })
+    .join("\n");
 
-    const navLinks = tables
-        .map((t) => `          <Link to="/${toRoute(t.name)}" className="hover:underline">${toPascal(t.name)}</Link>`)
-        .join("\n");
+  const navLinks = tables
+    .map((t) => `          <Link to="/${toRoute(t.name)}" className="hover:underline">${toPascal(t.name)}</Link>`)
+    .join("\n");
 
-    let app = `import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
+  let app = `import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
 ${imports}
 ${needsAuth ? 'import Login from "./pages/Login";\nimport PrivateRoute from "./components/PrivateRoute";\nimport { AuthContext, AuthProvider } from "./context/AuthContext";\nimport { useContext } from "react";' : ""}
 ${needsReports ? 'import Reports from "./pages/Reports";' : ""}
@@ -534,8 +534,8 @@ ${needsAuth ? '    <AuthProvider>\n      <BrowserRouter>\n        <AppRoutes />\
 }
 `;
 
-    fs.outputFileSync(path.join(root, "src", "App.jsx"), app);
-    console.log("  [✓] App.jsx");
+  fs.outputFileSync(path.join(root, "src", "App.jsx"), app);
+  console.log("  [✓] App.jsx");
 }
 
 module.exports = { generateFrontend };
