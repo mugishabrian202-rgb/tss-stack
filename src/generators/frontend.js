@@ -12,6 +12,7 @@ function generateFrontend(config) {
       {
         name: "frontend-project",
         version: "1.0.0",
+        type:"module",
         scripts: { dev: "vite", build: "vite build" },
         dependencies: {
           react: "^18.2.0",
