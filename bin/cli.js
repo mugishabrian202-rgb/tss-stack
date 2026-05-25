@@ -12,6 +12,10 @@ const { generateFrontend } = require("../src/generators/frontend");
 const { generateDatabase } = require("../src/generators/database");
 const { toPascal } = require("../src/generators/utils");
 
+/* ==========================================================================
+   CONSTANTS & CONFIG
+========================================================================== */
+
 const CONSTANTS = {
     MIN_PORT: 1,
     MAX_PORT: 65535,
@@ -36,19 +40,15 @@ const COLORS = {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/* ==========================================================================
+   LOGGER
+========================================================================== */
+
 const logger = {
-    info(message = "") {
-        console.log(message);
-    },
-    success(message) {
-        console.log(`${COLORS.green}[✓]${COLORS.reset} ${message}`);
-    },
-    warn(message) {
-        console.log(`${COLORS.yellow}[!]${COLORS.reset} ${message}`);
-    },
-    error(message) {
-        console.error(`${COLORS.red}[ERROR]${COLORS.reset} ${message}`);
-    },
+    info(message = "") { console.log(message); },
+    success(message) { console.log(`${COLORS.green}[✓]${COLORS.reset} ${message}`); },
+    warn(message) { console.log(`${COLORS.yellow}[!]${COLORS.reset} ${message}`); },
+    error(message) { console.error(`${COLORS.red}[ERROR]${COLORS.reset} ${message}`); },
     fatal(message, err = null) {
         console.error(`${COLORS.red}[FATAL]${COLORS.reset} ${message}`);
         if (err) console.error(err);
@@ -56,13 +56,17 @@ const logger = {
     },
 };
 
+/* ==========================================================================
+   VALIDATORS
+========================================================================== */
+
 function validateFolderName(value) {
     if (!value || value.trim() === "") return "Folder name cannot be empty.";
     if (value.includes("..") || value.includes("/") || value.includes("\\")) {
         return "Folder name cannot contain path separators or '..'.";
     }
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-_]*$/.test(value)) {
-        return "Folder name can only contain letters, numbers, dashes, and underscores, and must start with a letter or number.";
+        return "Folder name can only contain letters, numbers, dashes, and underscores.";
     }
     return true;
 }
@@ -82,7 +86,7 @@ function validateTableName(value) {
     const reservedWords = [
         "select", "insert", "update", "delete", "create", "drop",
         "table", "index", "key", "primary", "foreign", "user", "order",
-        "group", "having", "where", "from", "into", "values", "set"
+        "group", "having", "where", "from", "into", "values", "set",
     ];
     if (reservedWords.includes(value.toLowerCase())) {
         return `"${value}" is a reserved SQL keyword. Please use a different name.`;
@@ -96,29 +100,16 @@ function validatePort(value) {
     if (port < CONSTANTS.MIN_PORT || port > CONSTANTS.MAX_PORT) {
         return `Port must be between ${CONSTANTS.MIN_PORT} and ${CONSTANTS.MAX_PORT}.`;
     }
-    if (port < 1024) logger.warn("Warning: Ports below 1024 require root/admin privileges.");
     return true;
 }
 
 function validateFields(value) {
     const raw = Array.isArray(value) ? value.join(",") : String(value ?? "");
+    if (raw.trim() === "") return "At least one field is required.";
 
-    if (raw.trim() === "") {
-        return "At least one field is required.";
-    }
-
-    const parsed = raw
-        .split(",")
-        .map((f) => f.trim())
-        .filter(Boolean);
-
-    if (parsed.length === 0) {
-        return "At least one field is required.";
-    }
-
-    if (parsed.length > 50) {
-        return "Maximum 50 fields per table allowed.";
-    }
+    const parsed = raw.split(",").map((f) => f.trim()).filter(Boolean);
+    if (parsed.length === 0) return "At least one field is required.";
+    if (parsed.length > 50) return "Maximum 50 fields per table allowed.";
 
     const invalid = parsed.find((field) => {
         if (!/^[a-z][a-z0-9_]*$/.test(field)) return true;
@@ -127,9 +118,8 @@ function validateFields(value) {
     });
 
     if (invalid) {
-        return `Invalid field name "${invalid}". Use lowercase snake_case starting with a letter.`;
+        return `Invalid field name "${invalid}". Use lowercase snake_case starting with a letter. Note: id, created_at and updated_at are added automatically.`;
     }
-
     return true;
 }
 
@@ -137,9 +127,13 @@ function validateTableCount(value) {
     const count = Number(value);
     if (!Number.isInteger(count)) return "Enter a whole number.";
     if (count < CONSTANTS.MIN_TABLES) return `Minimum ${CONSTANTS.MIN_TABLES} table required.`;
-    if (count > CONSTANTS.MAX_TABLES) return `Maximum ${CONSTANTS.MAX_TABLES} tables allowed for stability.`;
+    if (count > CONSTANTS.MAX_TABLES) return `Maximum ${CONSTANTS.MAX_TABLES} tables allowed.`;
     return true;
 }
+
+/* ==========================================================================
+   HELPERS
+========================================================================== */
 
 async function printTree(lines) {
     for (const line of lines) {
@@ -150,7 +144,9 @@ async function printTree(lines) {
 
 function formatTree(lines) {
     if (lines.length === 0) return [];
-    return lines.map((line, index) => (index === lines.length - 1 ? line.replace("├──", "└──") : line));
+    return lines.map((line, index) =>
+        index === lines.length - 1 ? line.replace("├──", "└──") : line
+    );
 }
 
 function sanitizePackageName(name) {
@@ -170,7 +166,7 @@ function checkNodeVersion() {
     const [major] = process.versions.node.split(".").map(Number);
     const MIN_NODE = 16;
     if (major < MIN_NODE) {
-        logger.warn(`Warning: Node.js ${MIN_NODE}+ recommended. Current: ${process.versions.node}`);
+        logger.warn(`Node.js ${MIN_NODE}+ recommended. Current: ${process.versions.node}`);
         return false;
     }
     return true;
@@ -184,25 +180,15 @@ function runCommand(command, args, cwd, spinner, failMessage) {
             stdio: ["ignore", "pipe", "pipe"],
         });
 
-        child.stdout.on("data", (data) => process.stdout.write(data));
-        child.stderr.on("data", (data) => process.stderr.write(data));
-
         child.on("close", (code) => {
-            if (code === 0) {
-                spinner.succeed();
-                resolve();
-            } else {
-                spinner.fail(failMessage);
-                reject(new Error(`${command} exited with code ${code}`));
-            }
+            if (code === 0) { spinner.succeed(); resolve(); }
+            else { spinner.fail(failMessage); reject(new Error(`${command} exited with code ${code}`)); }
         });
 
-        child.on("error", (err) => {
-            spinner.fail(failMessage);
-            reject(err);
-        });
+        child.on("error", (err) => { spinner.fail(failMessage); reject(err); });
     });
 }
+
 async function cleanupProject(targetDir) {
     try {
         if (await fs.pathExists(targetDir)) {
@@ -210,23 +196,19 @@ async function cleanupProject(targetDir) {
             logger.warn(`Cleaned up partially generated project: ${targetDir}`);
         }
     } catch (err) {
-        logger.error(`Failed to clean up project directory: ${err.message}`);
+        logger.error(`Failed to clean up: ${err.message}`);
     }
 }
 
 async function generateGitIgnore(targetDir) {
-    const gitIgnoreContent = `node_modules/
-.env
-*.log
-.DS_Store
-.idea/
-.vscode/
-`;
-    const gitIgnorePath = path.join(targetDir, ".gitignore");
-    if (!(await fs.pathExists(gitIgnorePath))) {
-        await fs.outputFile(gitIgnorePath, gitIgnoreContent);
-    }
+    const content = `node_modules/\n.env\n*.log\n.DS_Store\n.idea/\n.vscode/\n`;
+    const dest = path.join(targetDir, ".gitignore");
+    if (!(await fs.pathExists(dest))) await fs.outputFile(dest, content);
 }
+
+/* ==========================================================================
+   PROMPTS
+========================================================================== */
 
 async function promptBasics(targetDir) {
     return inquirer.prompt([
@@ -234,7 +216,7 @@ async function promptBasics(targetDir) {
             name: "projectName",
             message: "[1] Project display name:",
             default: targetDir,
-            validate: (value) => (!value || value.trim() === "" ? "Project name cannot be empty." : true),
+            validate: (v) => (!v || v.trim() === "" ? "Project name cannot be empty." : true),
         },
         {
             name: "dbName",
@@ -286,6 +268,13 @@ async function promptTable(index) {
             ],
             validate: (value) => (value.length > 0 ? true : "Select at least one operation."),
         },
+        // STEP 1 — per-table report opt-in
+        {
+            name: "reports",
+            type: "confirm",
+            message: "Generate a report for this table?",
+            default: true,
+        },
     ]);
 }
 
@@ -306,24 +295,24 @@ async function promptFeatures() {
     ]);
 }
 
-process.stdout.write("\x1Bc");
+/* ==========================================================================
+   TREE PREVIEW
+========================================================================== */
 
 async function showProjectTree(config) {
+    const reportTables = config.tables.filter((t) => t.reports && config.needsReports);
+
     const backendRouteFiles = [
         config.needsAuth ? "│   │   ├── auth.js" : null,
         ...config.tables.map((t, i) => {
-            const isLast = i === config.tables.length - 1;
-            return `│   │   ${isLast && !config.tables.slice(i + 1).length ? "└──" : "├──"} ${t.name}.js`;
+            const isLast = i === config.tables.length - 1 && !config.needsReports;
+            return `│   │   ${isLast ? "└──" : "├──"} ${t.name}.js`;
         }),
+        config.needsReports && reportTables.length > 0 ? "│   │   └── reports.js" : null,
     ].filter(Boolean);
 
-    const frontendContextFiles = config.needsAuth ? [
-        "│   │   ├── AuthContext.jsx",
-    ] : [];
-
-    const frontendComponentFiles = config.needsAuth ? [
-        "│   │   └── PrivateRoute.jsx",
-    ] : [];
+    const frontendContextFiles = config.needsAuth ? ["│   │   ├── AuthContext.jsx"] : [];
+    const frontendComponentFiles = config.needsAuth ? ["│   │   └── PrivateRoute.jsx"] : [];
 
     const frontendPageFiles = [
         "│   │   ├── Home.jsx",
@@ -331,6 +320,11 @@ async function showProjectTree(config) {
         ...config.tables.map((t) => `│   │   ├── ${toPascal(t.name)}.jsx`),
         config.needsReports ? "│   │   └── Reports.jsx" : null,
     ].filter(Boolean);
+
+    const reportConfigFiles = reportTables.map((t, i) => {
+        const isLast = i === reportTables.length - 1;
+        return `    │   │   ${isLast ? "└──" : "├──"} ${t.name}.report.js`;
+    });
 
     const tree = [
         `${COLORS.yellow}${path.basename(config.targetDir)}/${COLORS.reset}`,
@@ -355,6 +349,12 @@ async function showProjectTree(config) {
         ...frontendContextFiles,
         config.needsAuth ? "    │   ├── components/" : null,
         ...frontendComponentFiles,
+        config.needsReports && reportTables.length > 0 ? "    │   ├── reports/" : null,
+        config.needsReports && reportTables.length > 0 ? "    │   │   ├── index.js" : null,
+        ...reportConfigFiles,
+        config.needsReports && reportTables.length > 0 ? "    │   ├── shared/" : null,
+        config.needsReports && reportTables.length > 0 ? "    │   │   ├── MetricCards.jsx" : null,
+        config.needsReports && reportTables.length > 0 ? "    │   │   └── ReportTable.jsx" : null,
         "    │   ├── pages/",
         ...frontendPageFiles,
         "    │   ├── App.jsx",
@@ -362,15 +362,16 @@ async function showProjectTree(config) {
         "    │   └── index.css",
         "    ├── vite.config.js",
         "    ├── tailwind.config.js",
-        "    ├── postcss.config.js",
         "    ├── index.html",
-        "    ├── .env.local.example",
-        "    ├── .gitignore",
         "    └── package.json",
     ].filter(Boolean);
 
     await printTree(tree);
 }
+
+/* ==========================================================================
+   MAIN
+========================================================================== */
 
 async function run() {
     checkNodeVersion();
@@ -409,6 +410,9 @@ async function run() {
         packageName: sanitizePackageName(basics.projectName),
     };
 
+    // Clear the interview from terminal
+    process.stdout.write("\x1Bc");
+
     logger.info(`\n[⁂] TSS Stack — generating ${COLORS.cyan}${config.projectName}${COLORS.reset}\n`);
     await sleep(CONSTANTS.INTRO_DELAY);
 
@@ -426,12 +430,11 @@ async function run() {
 
     if (!(await fs.pathExists(backendPath))) {
         await cleanupProject(absoluteTargetDir);
-        logger.fatal(`Missing backend directory:\n${backendPath}`);
+        logger.fatal(`Missing backend directory: ${backendPath}`);
     }
-
     if (!(await fs.pathExists(frontendPath))) {
         await cleanupProject(absoluteTargetDir);
-        logger.fatal(`Missing frontend directory:\n${frontendPath}`);
+        logger.fatal(`Missing frontend directory: ${frontendPath}`);
     }
 
     await generateGitIgnore(absoluteTargetDir);
@@ -440,7 +443,11 @@ async function run() {
 
     const backendSpinner = ora({ text: "Installing backend dependencies...", color: "cyan" }).start();
     try {
-        await runCommand(process.platform === "win32" ? "npm.cmd" : "npm", ["install"], backendPath, backendSpinner, "Backend dependency installation failed");
+        await runCommand(
+            process.platform === "win32" ? "npm.cmd" : "npm",
+            ["install"], backendPath, backendSpinner,
+            "Backend dependency installation failed"
+        );
     } catch (err) {
         await cleanupProject(absoluteTargetDir);
         logger.fatal(err.message);
@@ -448,7 +455,11 @@ async function run() {
 
     const frontendSpinner = ora({ text: "Installing frontend dependencies...", color: "magenta" }).start();
     try {
-        await runCommand(process.platform === "win32" ? "npm.cmd" : "npm", ["install"], frontendPath, frontendSpinner, "Frontend dependency installation failed");
+        await runCommand(
+            process.platform === "win32" ? "npm.cmd" : "npm",
+            ["install"], frontendPath, frontendSpinner,
+            "Frontend dependency installation failed"
+        );
     } catch (err) {
         await cleanupProject(absoluteTargetDir);
         logger.fatal(err.message);
@@ -484,6 +495,10 @@ ${COLORS.yellow}Tip:${COLORS.reset} Check ${COLORS.cyan}.gitignore${COLORS.reset
 `);
 }
 
+/* ==========================================================================
+   PROCESS HANDLERS
+========================================================================== */
+
 process.on("SIGINT", async () => {
     const targetDir = process.argv[2];
     if (targetDir) await cleanupProject(path.resolve(process.cwd(), targetDir));
@@ -497,14 +512,7 @@ process.on("SIGTERM", async () => {
     process.exit(143);
 });
 
-process.on("unhandledRejection", (reason) => {
-    logger.fatal("Unhandled Promise Rejection", reason);
-});
+process.on("unhandledRejection", (reason) => { logger.fatal("Unhandled Promise Rejection", reason); });
+process.on("uncaughtException", (err) => { logger.fatal("Uncaught Exception", err); });
 
-process.on("uncaughtException", (err) => {
-    logger.fatal("Uncaught Exception", err);
-});
-
-run().catch((err) => {
-    logger.fatal("Unexpected fatal error.", err.message || err);
-});
+run().catch((err) => { logger.fatal("Unexpected fatal error.", err.message || err); });

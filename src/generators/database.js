@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS ${escapeSqlIdentifier(table.name)} (
 `;
 
         for (const field of table.fields) {
-            sql += `  ${escapeSqlIdentifier(field)} ${inferSqlType(field)} NOT NULL,
-`;
+            sql += `  ${escapeSqlIdentifier(field)} ${inferSqlType(field)} NOT NULL,\n`;
         }
 
         sql += `  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +49,4 @@ CREATE TABLE IF NOT EXISTS ${escapeSqlIdentifier(table.name)} (
     console.log("  [✓] database.sql");
 }
 
-module.exports = {
-    generateDatabase,
-};
+module.exports = { generateDatabase };

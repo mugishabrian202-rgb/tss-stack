@@ -1,12 +1,13 @@
 const fs = require("fs-extra");
 const path = require("path");
 
-const { toPascal, toRoute } = require("./utils");
+const { toPascal, toRoute, inferReportConfig } = require("./utils");
 
 async function generateBackend(config) {
-    const { dbName, port, tables, needsAuth, targetDir } = config;
+    const { dbName, port, tables, needsAuth, needsReports, targetDir } = config;
     const root = path.join(targetDir, "backend-project");
 
+    // ── package.json ───────────────────────────────────────────────────────
     const dependencies = {
         express: "^4.18.2",
         mysql2: "^3.6.0",
@@ -24,10 +25,7 @@ async function generateBackend(config) {
             {
                 name: "backend-project",
                 version: "1.0.0",
-                scripts: {
-                    dev: "nodemon server.js",
-                    start: "node server.js",
-                },
+                scripts: { dev: "nodemon server.js", start: "node server.js" },
                 dependencies: needsAuth
                     ? dependencies
                     : {
@@ -37,15 +35,14 @@ async function generateBackend(config) {
                         dotenv: dependencies.dotenv,
                         helmet: dependencies.helmet,
                     },
-                devDependencies: {
-                    nodemon: "^3.0.1",
-                },
+                devDependencies: { nodemon: "^3.0.1" },
             },
             null,
             2
         )
     );
 
+    // ── .env.example ───────────────────────────────────────────────────────
     await fs.outputFile(
         path.join(root, ".env.example"),
         `DB_HOST=localhost
@@ -59,24 +56,19 @@ NODE_ENV=development
 `
     );
 
+    // ── .gitignore ─────────────────────────────────────────────────────────
     await fs.outputFile(
         path.join(root, ".gitignore"),
-        `node_modules/
-.env
-.env.local
-*.log
-npm-debug.log*
-.DS_Store
-.idea/
-.vscode/
-`
+        `node_modules/\n.env\n.env.local\n*.log\nnpm-debug.log*\n.DS_Store\n`
     );
 
+    // ── config/db.js — promise-based pool ─────────────────────────────────
     await fs.outputFile(
         path.join(root, "config", "db.js"),
         `const mysql = require("mysql2");
 require("dotenv").config();
 
+// Promise-based pool — use "await db.query(...)" everywhere
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -91,7 +83,6 @@ pool.getConnection((err, connection) => {
     console.error("[ERROR] MySQL connection failed:", err.message);
     process.exit(1);
   }
-
   console.log("[✓] MySQL connected");
   connection.release();
 });
@@ -100,6 +91,7 @@ module.exports = pool.promise();
 `
     );
 
+    // ── middleware/auth.js ─────────────────────────────────────────────────
     if (needsAuth) {
         await fs.outputFile(
             path.join(root, "middleware", "auth.js"),
@@ -110,6 +102,7 @@ module.exports = pool.promise();
 `
         );
 
+        // ── routes/auth.js ─────────────────────────────────────────────────
         await fs.outputFile(
             path.join(root, "routes", "auth.js"),
             `const express = require("express");
@@ -119,32 +112,23 @@ const router = express.Router();
 const db = require("../config/db");
 const isAuthenticated = require("../middleware/auth");
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-});
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50 });
 
 router.post("/register", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
-
-    if (!username || !password) {
+    if (!username || !password)
       return res.status(400).json({ message: "Username and password required" });
-    }
-
-    if (password.length < 6) {
+    if (password.length < 6)
       return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
 
     const hash = await bcrypt.hash(password, 10);
-
     try {
       await db.query("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash]);
       res.json({ message: "User registered successfully" });
     } catch (err) {
-      if (err.code === "ER_DUP_ENTRY") {
+      if (err.code === "ER_DUP_ENTRY")
         return res.status(400).json({ message: "Username already exists" });
-      }
       throw err;
     }
   } catch (err) {
@@ -155,42 +139,28 @@ router.post("/register", authLimiter, async (req, res) => {
 router.post("/login", authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
-
-    if (!username || !password) {
+    if (!username || !password)
       return res.status(400).json({ message: "Username and password required" });
-    }
 
-    const [results] = await db.query("SELECT id, username FROM users WHERE username = ? LIMIT 1", [username]);
-
-    if (results.length === 0) {
+    const [results] = await db.query(
+      "SELECT id, username, password FROM users WHERE username = ? LIMIT 1",
+      [username]
+    );
+    if (results.length === 0)
       return res.status(401).json({ message: "Invalid credentials" });
-    }
 
     const user = results[0];
-    const [userWithPassword] = await db.query("SELECT password FROM users WHERE id = ?", [user.id]);
-    const passwordMatch = await bcrypt.compare(password, userWithPassword[0].password);
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ message: "Invalid credentials" });
 
-    if (!passwordMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-    };
-
-    res.json({
-      message: "Login successful",
-      user: req.session.user,
-    });
+    req.session.user = { id: user.id, username: user.username };
+    res.json({ message: "Login successful", user: req.session.user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get("/me", isAuthenticated, (req, res) => {
-  res.json(req.session.user);
-});
+router.get("/me", isAuthenticated, (req, res) => res.json(req.session.user));
 
 router.post("/logout", (req, res) => {
   req.session.destroy((err) => {
@@ -204,13 +174,14 @@ module.exports = router;
         );
     }
 
+    // ── One route file per table ───────────────────────────────────────────
     for (const table of tables) {
         const routeName = toRoute(table.name);
         const insertFields = table.fields.join(", ");
         const placeholders = table.fields.map(() => "?").join(", ");
-        const values = table.fields.map((field) => `req.body.${field}`).join(", ");
-        const updateSet = table.fields.map((field) => `${field} = ?`).join(", ");
-        const updateValues = [...table.fields.map((field) => `req.body.${field}`), "req.params.id"].join(", ");
+        const values = table.fields.map((f) => `req.body.${f}`).join(", ");
+        const updateSet = table.fields.map((f) => `${f} = ?`).join(", ");
+        const updateValues = [...table.fields.map((f) => `req.body.${f}`), "req.params.id"].join(", ");
 
         let route = `const express = require("express");
 const router = express.Router();
@@ -220,81 +191,156 @@ ${needsAuth ? 'const isAuthenticated = require("../middleware/auth");' : ""}
 `;
 
         if (table.operations.includes("insert")) {
-            route += `router.post(
-  "/",
-  ${needsAuth ? "isAuthenticated," : ""}
-  async (req, res) => {
-    try {
-      const sql = "INSERT INTO ${table.name} (${insertFields}) VALUES (${placeholders})";
-      await db.query(sql, [${values}]);
-      res.json({ message: "${toPascal(table.name)} created" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+            route += `router.post("/", ${needsAuth ? "isAuthenticated, " : ""}async (req, res) => {
+  try {
+    const sql = "INSERT INTO ${table.name} (${insertFields}) VALUES (${placeholders})";
+    await db.query(sql, [${values}]);
+    res.json({ message: "${toPascal(table.name)} created" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-);
+});
 
 `;
         }
 
         if (table.operations.includes("select")) {
-            route += `router.get(
-  "/",
-  ${needsAuth ? "isAuthenticated," : ""}
-  async (req, res) => {
-    try {
-      const [rows] = await db.query("SELECT * FROM ${table.name}");
-      res.json(rows);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+            route += `router.get("/", ${needsAuth ? "isAuthenticated, " : ""}async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT * FROM ${table.name}");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-);
+});
 
 `;
         }
 
         if (table.operations.includes("update")) {
-            route += `router.put(
-  "/:id",
-  ${needsAuth ? "isAuthenticated," : ""}
-  async (req, res) => {
-    try {
-      const sql = "UPDATE ${table.name} SET ${updateSet} WHERE id = ?";
-      await db.query(sql, [${updateValues}]);
-      res.json({ message: "${toPascal(table.name)} updated" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+            route += `router.put("/:id", ${needsAuth ? "isAuthenticated, " : ""}async (req, res) => {
+  try {
+    const sql = "UPDATE ${table.name} SET ${updateSet} WHERE id = ?";
+    await db.query(sql, [${updateValues}]);
+    res.json({ message: "${toPascal(table.name)} updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-);
+});
 
 `;
         }
 
         if (table.operations.includes("delete")) {
-            route += `router.delete(
-  "/:id",
-  ${needsAuth ? "isAuthenticated," : ""}
-  async (req, res) => {
-    try {
-      await db.query("DELETE FROM ${table.name} WHERE id = ?", [req.params.id]);
-      res.json({ message: "${toPascal(table.name)} deleted" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+            route += `router.delete("/:id", ${needsAuth ? "isAuthenticated, " : ""}async (req, res) => {
+  try {
+    await db.query("DELETE FROM ${table.name} WHERE id = ?", [req.params.id]);
+    res.json({ message: "${toPascal(table.name)} deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-);
+});
 
 `;
         }
 
-        route += `module.exports = router;
-`;
-
+        route += `module.exports = router;\n`;
         await fs.outputFile(path.join(root, "routes", `${routeName}.js`), route);
     }
 
+    // ── STEP 6 — reports.js route ──────────────────────────────────────────
+    // Generated only when needsReports is true AND at least one table opted in.
+    // Uses table-specific aggregate SELECT queries built from inferReportConfig,
+    // so each endpoint returns real KPI data rather than a raw SELECT *.
+    // The table whitelist prevents SQL injection via the :table param.
+    const reportTables = needsReports ? tables.filter((t) => t.reports) : [];
+
+    if (reportTables.length > 0) {
+        const allowedTablesList = reportTables.map((t) => `"${t.name}"`).join(", ");
+
+        // Build one SQL SELECT per table that aggregates metric fields
+        const tableQueryMap = reportTables.map((t) => {
+            const rc = inferReportConfig(t);
+
+            // Build SELECT clause: SUM/COUNT per metric + COUNT(*) as total_records
+            const selectParts = ["COUNT(*) AS total_records"];
+
+            for (const metric of rc.metrics) {
+                selectParts.push(`SUM(${metric}) AS ${metric}_sum`);
+                selectParts.push(`AVG(${metric}) AS ${metric}_avg`);
+            }
+
+            for (const dim of rc.dimensions) {
+                selectParts.push(`${dim}`);
+            }
+
+            // If there are dimensions, group by them; otherwise a single aggregate row
+            const groupBy = rc.dimensions.length > 0
+                ? `GROUP BY ${rc.dimensions.join(", ")}`
+                : "";
+
+            return `    "${t.name}": \`SELECT ${selectParts.join(", ")} FROM ${t.name} ${groupBy}\`.trim(),`;
+        }).join("\n");
+
+        await fs.outputFile(
+            path.join(root, "routes", "reports.js"),
+            `const express = require("express");
+const router = express.Router();
+const db = require("../config/db");
+${needsAuth ? 'const isAuthenticated = require("../middleware/auth");' : ""}
+
+// Whitelist of tables that have reporting enabled.
+// This prevents arbitrary table names from reaching the database.
+const ALLOWED_TABLES = [${allowedTablesList}];
+
+// Pre-built aggregate queries per table — generated from your field names.
+// Edit the SQL here if you need different aggregations.
+const TABLE_QUERIES = {
+${tableQueryMap}
+};
+
+// GET /reports/:table
+// Returns aggregated KPI data for the requested table.
+// Example: GET /reports/stock_out  → { total_records, unit_price_sum, ... }
+router.get("/:table", ${needsAuth ? "isAuthenticated, " : ""}async (req, res) => {
+  const { table } = req.params;
+
+  if (!ALLOWED_TABLES.includes(table)) {
+    return res.status(400).json({ message: "Report not available for this table" });
+  }
+
+  try {
+    const [rows] = await db.query(TABLE_QUERIES[table]);
+    res.json({ table, data: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /reports
+// Returns a summary across all reportable tables in one request.
+// The frontend Reports page uses this single endpoint.
+router.get("/", ${needsAuth ? "isAuthenticated, " : ""}async (req, res) => {
+  try {
+    const results = {};
+
+    for (const table of ALLOWED_TABLES) {
+      const [rows] = await db.query(TABLE_QUERIES[table]);
+      results[table] = rows;
+    }
+
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+`
+        );
+    }
+
+    // ── server.js ──────────────────────────────────────────────────────────
     const routeImports = tables
         .map((t) => `const ${toPascal(t.name)}Route = require("./routes/${toRoute(t.name)}");`)
         .join("\n");
@@ -305,23 +351,24 @@ ${needsAuth ? 'const isAuthenticated = require("../middleware/auth");' : ""}
 
     const authImport = needsAuth ? 'const authRoutes = require("./routes/auth");' : "";
     const authMount = needsAuth ? 'app.use("/auth", authRoutes);' : "";
-    const authMiddleware = needsAuth
+    const reportsImport = reportTables.length > 0 ? 'const reportsRoute = require("./routes/reports");' : "";
+    const reportsMount = reportTables.length > 0 ? 'app.use("/reports", reportsRoute);' : "";
+
+    const sessionMiddleware = needsAuth
         ? `const session = require("express-session");
 
 app.use(session({
   secret: process.env.SESSION_SECRET || "change_me",
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false,
-  },
+  cookie: { httpOnly: true, sameSite: "lax", secure: false },
 }));
 `
         : "";
 
-    const server = `const express = require("express");
+    await fs.outputFile(
+        path.join(root, "server.js"),
+        `const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 require("dotenv").config();
@@ -329,6 +376,7 @@ require("dotenv").config();
 const app = express();
 const db = require("./config/db");
 ${authImport}
+${reportsImport}
 ${routeImports}
 
 app.use(helmet());
@@ -337,22 +385,20 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
-${authMiddleware}
+${sessionMiddleware}
 app.get("/health", (req, res) => res.json({ ok: true }));
 ${authMount}
+${reportsMount}
 ${routeMounts}
 
-const port = process.env.PORT || 5000;
-
+const port = process.env.PORT || ${port};
 app.listen(port, () => {
   console.log(\`[✓] Server running on port \${port}\`);
 });
-`;
+`
+    );
 
-    await fs.outputFile(path.join(root, "server.js"), server);
     console.log("  [✓] backend files");
 }
 
-module.exports = {
-    generateBackend,
-};
+module.exports = { generateBackend };

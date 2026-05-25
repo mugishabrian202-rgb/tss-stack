@@ -51,10 +51,63 @@ function inferSqlType(field = "") {
     return "VARCHAR(255)";
 }
 
+/**
+ * Analyses a table's fields and categorises them for report generation.
+ *
+ * metrics   — numeric fields worth summing (price, total, quantity, amount, cost)
+ * dimensions — categorical fields worth grouping by (status, type, category)
+ * dateFields — date/time fields useful for trend queries
+ *
+ * @param {{ name: string, fields: string[] }} table
+ * @returns {{ metrics: string[], dimensions: string[], dateFields: string[] }}
+ */
+function inferReportConfig(table) {
+    const metrics = [];
+    const dimensions = [];
+    const dateFields = [];
+
+    for (const field of table.fields) {
+        const lower = field.toLowerCase();
+
+        if (
+            lower.includes("amount") ||
+            lower.includes("price") ||
+            lower.includes("total") ||
+            lower.includes("quantity") ||
+            lower.includes("cost") ||
+            lower.includes("count")
+        ) {
+            metrics.push(field);
+        } else if (
+            lower.includes("date") ||
+            lower.includes("created") ||
+            lower.includes("updated") ||
+            lower.includes("time")
+        ) {
+            dateFields.push(field);
+        } else if (
+            lower.includes("status") ||
+            lower.includes("type") ||
+            lower.includes("category") ||
+            lower.includes("kind")
+        ) {
+            dimensions.push(field);
+        }
+    }
+
+    // Always include created_at as a date dimension — it is added to every table
+    if (!dateFields.includes("created_at")) {
+        dateFields.push("created_at");
+    }
+
+    return { metrics, dimensions, dateFields };
+}
+
 module.exports = {
     toPascal,
     toCamel,
     toRoute,
     escapeSqlIdentifier,
     inferSqlType,
+    inferReportConfig,
 };
